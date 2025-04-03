@@ -41,7 +41,7 @@ app.post(`/webhook/${TELEGRAM_TOKEN}`, async (req, res) => {
     }
 
     console.log(`Processing UID: ${firebaseUid}`);
-    const userRef = db.collection('users').doc(firebaseUid); // Fixed syntax
+    const userRef = db.collection('users').doc(firebaseUid); // Correct syntax
     await userRef.set({ telegramId: chatId.toString() }, { merge: true });
     console.log(`Updated Firebase user ${firebaseUid} with Telegram ID ${chatId}`);
 
