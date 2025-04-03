@@ -16,7 +16,7 @@ const db = admin.firestore();
 const app = express();
 const PORT = process.env.PORT || 10000;
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
-const WEB_APP_URL = 'https://your-web-app.com'; // Replace with your web app URL
+const WEB_APP_URL = 'https://jara-app-d6712.web.app'; // Your web app URL
 
 console.log('Token loaded:', TELEGRAM_TOKEN ? 'Yes' : 'No');
 
@@ -34,39 +34,29 @@ app.post(`/webhook/${TELEGRAM_TOKEN}`, async (req, res) => {
 
     console.log(`Received Telegram ID: ${chatId}`);
     const messageText = update.message?.text || '';
-    const startMatch = messageText.match(/\/start (\w+)/);
 
-    if (!startMatch) {
-      console.log('No /start command found:', messageText);
-      return res.sendStatus(200);
-    }
+    if (messageText === '/start' || messageText.match(/\/start (\w+)/)) {
+      let referrerTelegramId = null;
+      const startMatch = messageText.match(/\/start (\w+)/);
+      if (startMatch && /^\d+$/.test(startMatch[1])) {
+        referrerTelegramId = startMatch[1];
+        console.log(`Received referral Telegram ID: ${referrerTelegramId}`);
+      }
 
-    const param = startMatch[1];
-
-    if (/^\d+$/.test(param)) {
-      // Referral link: /start <referrer-telegramId>
-      const referrerTelegramId = param;
-      console.log(`Received referral Telegram ID: ${referrerTelegramId}`);
-
-      // Store temporary Telegram user data
-      const telegramUserRef = db.collection('telegramUsers').doc(chatId.toString());
-      await telegramUserRef.set({
-        telegramId: chatId.toString(),
-        referrerTelegramId,
-        firebaseUid: null,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      }, { merge: true });
-      console.log(`Stored Telegram user ${chatId} with referrer ${referrerTelegramId}`);
-
-      // Send signup link to user via Telegram
-      const signupUrl = `${WEB_APP_URL}/signup?telegramId=${chatId}&ref=${referrerTelegramId}`;
+      // Launch web app with optional referrer
+      const webAppUrl = referrerTelegramId
+        ? `${WEB_APP_URL}?ref=${referrerTelegramId}`
+        : WEB_APP_URL;
       await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
         chat_id: chatId,
-        text: `Welcome! Sign up here to start earning $JRA: ${signupUrl}`,
+        text: 'Start earning $JRA now!',
+        reply_markup: {
+          inline_keyboard: [[
+            { text: 'Open Jara Reward', web_app: { url: webAppUrl } }
+          ]]
+        }
       });
-      console.log(`Sent signup link to ${chatId}: ${signupUrl}`);
-    } else {
-      console.log(`Unexpected /start parameter: ${param} (ignoring)`);
+      console.log(`Sent web app link to ${chatId}: ${webAppUrl}`);
     }
 
     res.sendStatus(200);
